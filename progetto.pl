@@ -1,0 +1,19 @@
+:-abolish(class/3).
+:-abolish(ist/2).
+:-abolish(ist/3).
+define_class(Cname,[],Slots):-
+    assert(class(Cname,[object],Slots)),
+    !.
+
+define_class(Cname,Parents,Slots):-
+    assert(class(Cname,Parents,Slots)).
+new(Iname,Cname,Slots):-
+    is_class(Cname),
+    assert(ist(Iname,Cname,Slots)).
+new(Iname,Cname):-
+    is_class(Cname),
+    assert(ist(Iname,Cname)).
+is_class(Cname):-
+    class(Cname,_,_).
+is_instance(Iname):-
+    ist(Iname,_).
