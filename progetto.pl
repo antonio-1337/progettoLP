@@ -1,8 +1,8 @@
 :-abolish(class/3).
 :-abolish(ist/2).
 :-abolish(ist/3).
-ist(err,_,_).
-ist(err,_).
+instance(err,_,_).
+instance(err,_).
 
 define_class(Cname,[],Slots):-
     %%controllo se è ben formata?
@@ -15,25 +15,25 @@ define_class(Cname,Parents,Slots):-
 new(Iname,Cname,Slots):-
     is_class(Cname),
     %ist è l'istanza vera e propria
-    assert(ist(Iname,Cname,Slots)).
+    assert(instance(Iname,Cname,Slots)).
 
 new(Iname,Cname):-
     is_class(Cname),
     %ist è l'istanza vera e propria
-    assert(ist(Iname,Cname)).
+    assert(instance(Iname,Cname)).
 
 is_class(Cname):-
     class(Cname,_,_).
 
 is_instance(Iname):-
-    ist(Iname,_).
+    instance(Iname,_).
 
 is_instance(Iname):-
-    ist(Iname,_,_).
-%%bugga con le maiuscole ho già provato lowercase
+    instance(Iname,_,_).
+
 slot(Inst,Slotname,Res):-
     is_instance(Inst),
-    ist(Inst,_,Slots),
+    instance(Inst,_,Slots),
     cerca(Slots,Slotname,Res).
 
 cerca([Slt1|_],Slotname,Res):-
@@ -41,7 +41,8 @@ cerca([Slt1|_],Slotname,Res):-
     atom_concat(Slotname,'=',X),
     term_to_atom(Slt1,Atomslot),
     %%ottengo solo il valore da ritornare
-    remove_char(Atomslot,X,Res).
+    remove_char(Atomslot,X,Res1),
+    term_to_atom(Res,Res1).
 
 cerca([_|T],Slotname,Res):-
     cerca(T,Slotname,Res).
@@ -56,7 +57,7 @@ slotx(_,[],_):-
 
 slotx(Inst,[X|T],Res):-
   is_instance(Inst),
-  ist(Inst,_,Slotint),
+  instance(Inst,_,Slotint),
   cerca(Slotint,X,Res1),
   writeln(Res1),
   slotx(Inst,T,Res).
