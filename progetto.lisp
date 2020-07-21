@@ -1,5 +1,9 @@
+;Fontana Michele 829658
+
+
 ;parametro associato alle specs della classe
 (defparameter *classes-specs* (make-hash-table))
+
 ;permette di settare la hash
 (defun add-class-spec (name class-spec)
     (setf (gethash name *classes-specs*) class-spec)
@@ -10,6 +14,7 @@
 )
 ;permette la parentela con la classe object
 (add-class-spec 'object (list 'object NIL NIL))
+
 ;funzione primitiva define class prende in input 
 (defun define-class (class-name parent &rest slot-value)
     (cond
@@ -50,26 +55,20 @@
 						;add specs ordine corretto nome classe super 
                         (list
                             class-name super
-                            (prepare-build-slots
-                                (caddr (get-class-spec super)) ;third in poi
-                                (incapsulate-slots slot-value)
-                            )
+                        (incapsulate-slots slot-value)
                         )
                     )
                 )
-                ;--------------------------------------------------------------;
-                ; Ritorno <Class-Name> come da specifica
-                ;--------------------------------------------------------------;
+				;ritorno class name 
                 class-name
-                ;--------------------------------------------------------------;
             )
         )
     )
 )
+
 ;genero l'instance della class name passata aggiungo oolinst come da consegna per riconoscerla
 (defun new (class-name &rest slot-value)
     (cond
-        ;----------------------------------------------------------------------;
         ((get-class-spec class-name)
             (cons
                 'oolinst
@@ -78,13 +77,12 @@
                     (prepare-build-slots
                         (caddr (get-class-spec class-name))
                         (incapsulate-slots slot-value)
+						(cadr (get-class-spec class-name))
                     )
                 )
             )
         )
-        ;----------------------------------------------------------------------;
         (T (error "ERRORE: <Class-Name> da definire non trovata!"))
-        ;----------------------------------------------------------------------;
     )
 )
 ;funzione che ritorna il valore dello slot name richiesto dall'instance richiesta 
@@ -96,9 +94,8 @@
         ((not (equalp 'oolinst (car instance)))
             (error "ERRORE: <Instance> da elaborare non valida!")
         )
-		; se non ho più nulla in cui cercare cerco nei parents partendo dal più lontano
 		((null (cddr instance))
-			(<<helper (cadr (get-class-spec(cadr instance))) slot-name)
+			(error "ERRORE: <Slot-name> non trovato!")
         )
 		;ricerca normale nell'istance 
         ((equalp (caaddr instance) slot-name)
@@ -106,7 +103,7 @@
                 ((atom (cdr (caddr instance)))
                     (cdaddr instance)
                 )
-				; se => ritorno la funzione
+				; se è =>, ritorno la funzione
                 (
                     (and
                         (equalp '=> (cadr (caddr instance)))
@@ -133,18 +130,99 @@
     )
 )
 
-;==============================================================================;
-;                  ELABORATORE EREDITARIETA' METODI E MEMBRI                   ;
-;==============================================================================;
-; Dati la lista <Slots> figlia, la lista <Slots> parent ed il valore
-; della flag BLOCKER verifico la presenza di membri e/o metodi sovrascritti:
-;------------------------------------------------------------------------------;
-(defun prepare-build-slots (listparent listson )
-    (remove-duplicates
-        (build-slots listparent listson)
-        :key #'car
-    )
+;;esegue ricerca << su più slot 
+(defun <<* ( istance slt1 &rest slts)
+	(write (<< istance slt1))
+	(terpri)	
+	(<<all istance slts)
 )
+
+
+;; esegue << su una lista 
+(defun <<all (istance slts)
+	(if 
+		(null slts)
+		;if
+		T
+		;else
+		(progn 
+			(write (<< istance (car slts)))
+			(terpri)
+			(<<all istance (cdr slts))
+		)
+	)
+)
+
+;;ritorna true se il valore passato è una classe
+(defun is-class (class-name)
+	(if
+		(null (get-class-spec class-name)) 
+		
+		NIL
+		
+		T
+)
+)
+
+
+;;ritorna true se il valore passato è un'istanza 
+(defun is-instance (instance)
+	(if
+		(or (not (listp instance)) (null ( cddr instance)))
+		
+		NIL
+		
+		(if 	
+			(equalp 'oolinst (car instance))   
+			T
+			NIL
+		
+		)
+	
+)
+)
+
+
+;elabora l'ereditarietà in profondità dei metodi e degli slot con il parent quando creo un'istanza 
+(defun prepare-build-slots (listparent listson parents)
+	(remove-duplicates
+		(reduce #'cons 
+			(build-slots listparent listson)
+			:initial-value 
+					(reduce #'cons
+					(exec-parents parents listson)
+					:initial-value (exec-all parents listson)
+					:from-end t )
+			:from-end t)
+        :key #'car :from-end t
+    
+	)
+	
+)
+;cerca gli slots da mettere prima nei parents più lontani
+(defun exec-parents (listpar son)
+	(if
+		(or (null listpar) (not (listp listpar)))
+		NIL
+		(reduce #'cons 
+		(build-slots (caddr(get-class-spec(get-parent-to-obj(list(car listpar)))))son)
+		:initial-value (exec-all (cdr listpar) son)
+		:from-end t)
+	)
+	)
+
+;cerca gli slots nei parents più vicini ovviamente con priorità a quelli più lontani
+(defun exec-all (listpar son)
+	(if
+		(or (null listpar) (not (listp listpar)))
+		NIL
+		(reduce #'cons 
+		(build-slots (caddr(get-class-spec(car listpar)))son)
+		:initial-value (exec-all (cdr listpar) son)
+		:from-end t)
+	)
+	)
+
 
 ; Date due liste le concatena verificando gli attributi delle liste della
 ; super classe e della classe figlia instanziando i valori di quest'ultima;
@@ -179,7 +257,7 @@
                 (cons
                     (check-is-method (car lson) )
                     (build-slots
-                        (build-slots-remover lparent (caar lson))
+                        (arg-remover lparent (caar lson))
                         (cdr lson)
                         
                     )
@@ -192,27 +270,17 @@
         )
     )
 )
-;------------------------------------------------------------------------------;
-; Date due liste verifico gli attributi della super-classe e della figlia
-; in cerca dello slot in esame. Se lo trovo forzo il ritorno di T.
-;------------------------------------------------------------------------------;
+; ricerca slot in esame nelle due liste T se trovato
 (defun build-slots-checker (lcurrent findarg)
     (cond
-        ;----------------------------------------------------------------------;
-        ; Se argomento da cercare non e' un simbolo
-        ;----------------------------------------------------------------------;
         ((not (symbolp findarg))
             (error "ERRORE: Lo <Slot-Name> non e' un simbolo!")
         )
-        ;----------------------------------------------------------------------;
-        ; Se lista immessa NIL
-        ;----------------------------------------------------------------------;
+		
         ((null lcurrent)
             (return-from build-slots-checker NIL)
         )
-        ;----------------------------------------------------------------------;
-        ; Ricorsione utile alla navigazione della lista in cerca di ARG
-        ;----------------------------------------------------------------------;
+
         ( 
             (if (equalp (caar lcurrent) findarg)
                 (return-from build-slots-checker T)
@@ -222,46 +290,36 @@
                 )
             )
         )
-        ;----------------------------------------------------------------------;
     )
 )
-;------------------------------------------------------------------------------;
-; Date due liste pre-verificate elimino temporaneamente dalla super-classe
-; l'attributo della figlia in esame per avere uno e un solo slot per nome.
-;------------------------------------------------------------------------------;
-(defun build-slots-remover (lcurrent delarg)
+
+; elimino temporaneamente dalla super-classel'attributo della figlia in esame per avere uno e un solo slot per nome.
+(defun arg-remover (lcurrent delarg)
     (cond
-        ;----------------------------------------------------------------------;
-        ; Se lista immessa NIL
-        ;----------------------------------------------------------------------;
         ((null lcurrent) NIL)
-        ;----------------------------------------------------------------------;
-        ; Ricorsione per manipolazione della lista immessa: REMOVE( ARG )
-        ;----------------------------------------------------------------------;
+
         (T
             (if (equalp (caar lcurrent) delarg)
-                (build-slots-remover
+                (arg-remover
                     (cdr lcurrent)
                     delarg
                 )
                 (cons
                     (car lcurrent)
-                    (build-slots-remover
+                    (arg-remover
                         (cdr lcurrent)
                         delarg
                     )
                 )
             )
         )
-        ;----------------------------------------------------------------------;
     )
 )
 ;controlla se è presente => (quindi se è un metodo ) nel caso positivo fa process method
-(defun check-is-method (method-slots );blocker
+(defun check-is-method (method-slots)
     (cond
         (
             (and
-                ;(not blocker)
                 (listp (cdr method-slots))
                 (equalp '=> (cadr method-slots))
             )
@@ -349,115 +407,41 @@
         )
     )
 )
-;;ritorna true se il valore passato è una classe
-(defun is-class (class-name)
-	(if
-		(null (get-class-spec class-name)) 
-		
-		NIL
-		
-		T
-)
-)
-;;ritorna true se il valore passato è un'istanza 
-(defun is-instance (instance)
-	(if
-		(or (not (listp instance)) (null ( cddr instance)))
-		
-		NIL
-		
-		(if 	
-			(equalp 'oolinst (car instance))   
-			T
-			NIL
-		
-		)
-	
-)
-)
+
+
 ;;true se esistono le class specs
 (defun find-class-specs (lista-parents)
 	(cond 
-		((null lista-parents) T)
-		((null (get-class-spec (car lista-parents))) NIL	)
+		( (null lista-parents)  T)
+		((null (get-class-spec (car lista-parents)))   NIL	)
 		(T (find-class-specs (cdr lista-parents)))
-		))
+	)
+)
 
-;;gestisce la ricerca invocando procede 
-(defun <<helper (lista-parents slot-name)
-	(if (listp lista-parents)
-	(if		(null (car lista-parents)) 
-		(error "ERRORE: <Slot-Name> da ricercare sconosciuto!")
-		(cond  
-			((not (null (procede (get-class-spec(get-parent-to-obj (list (car lista-parents)))) slot-name))) 
-				(procede (get-class-spec(get-parent-to-obj (list (car lista-parents)))) slot-name))
-			(T(if 	
-				(null (procede (get-class-spec(car lista-parents)) slot-name))
-						(if (null (cdr lista-parents))
-						(<<helper (cadr (get-class-spec (car lista-parents))) slot-name)
-						(<<helper (cdr lista-parents) slot-name)
-						)
-						(procede (get-class-spec(car lista-parents))slot-name)
-				)
-			
-			
+;;ritorna il parent più in "alto" nella gerarchia cioè che ha object come parent
+(defun get-parent-to-obj (lista-parents)
+	(let 
+		((obj 
+			(if 
+				(listp (cadr(get-class-spec(car lista-parents))))
+				;if
+				(caadr(get-class-spec(car lista-parents)))
+				;else
+				(cadr(get-class-spec(car lista-parents))))
+		))
+		(if 
+			(null lista-parents)
+			;if
+			NIL
+			;else
+			(if 
+				(equalp 'object obj) 
+				;if
+				(return-from get-parent-to-obj (car(get-class-spec(car lista-parents))))
+				;else
+				(get-parent-to-obj (cadr(get-class-spec(car lista-parents))))
 			)
 		)
 	)
-	(error "ERRORE: no method or slot named <Slot-Name> found.")
 )
-)
-;;elabora la ricerca 
-(defun procede (parent slot-name)
-(cond
-	((null (caddr parent))
-            NIL
-       )
-	 ((equalp (car(caaddr parent)) slot-name)
-           (cdr(caaddr parent ))
-        )
-		 (T
-            (procede
-                (reduce #'cons
-                     (subseq parent 0 2)
-                     :initial-value (list(cdaddr parent))
-                     :from-end t)
-                slot-name
-            )
-        )
-	)
-	)
-;;ritorna il parent più in "alto" nella gerarchia cioè che ha object come parent
-(defun get-parent-to-obj (lista-parents)
-	(let ((obj 
-		(if (listp (cadr(get-class-spec(car lista-parents))))
-			(caadr(get-class-spec(car lista-parents)))
-			(cadr(get-class-spec(car lista-parents))))
-	))
-	(if (null lista-parents)
-		NIL
-	(if (equalp 'object obj) 	
-		(return-from get-parent-to-obj (car(get-class-spec(car lista-parents))))
-		(get-parent-to-obj (cadr(get-class-spec(car lista-parents))))
-	)
-	)
-	))
-;;esegue ricerca << su più slot 
-(defun <<* ( istance slt1 &rest slts)
-	(write (<< istance slt1))
-	(terpri)	
-	(<<all istance slts)
-)
-;; esegue << su una lista 
-(defun <<all (istance slts)
-	(if (null slts)
-		T
-		(progn 
-		(write (<< istance (car slts)))
-		(terpri)
-		(<<all istance (cdr slts))
-		)
-		;(values(<< istance (car slts)) (<<all istance (cdr slts)))
-)
-)
-	
+
