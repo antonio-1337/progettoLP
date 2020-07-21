@@ -1,4 +1,5 @@
-;Fontana Michele 829658
+;Michele Fontana 829658
+;Antonio Suteu 847020
 
 
 ;parametro associato alle specs della classe
