@@ -1,0 +1,59 @@
+Membri del gruppo:
+Michele Fontana 829658
+Antonio Suteu 847020
+
+Questo README si riferisce al file ool.pl che implementa un'esetnsione object oriented in Prolog
+le funzioni principali come da consegna sono 4 :
+
+define_class:
+come suggerisce il nome permette di definire una nuova classe e di indicare i parent
+(deve essere una lista) e i successivi slot che possono contenere o attributi o metodi.
+
+new:
+permette di creare una nuova istanza di una classe, con un suo nome e i suoi attributi
+automaticamente il programma rende invocabili i metodi creati in precedenza su quell'istanza.
+ 
+slot:
+dopo aver creato l'istanza posso eseguire la funzione slot che avendo in input un'istanza e il nome 
+di uno slot da cercare. ad esempio con age ritorna, se presente, il valore associato.
+La ricerca del valore va nell'ordine prima nell'istanza stessa poi nella classe direttamente padre
+e successivamente parte dal "parent più lontano a salire".
+
+slotx:
+analoga a slot ma a ricerca multipla con più campi di ricerca.
+
+
+ESEMPI TESTATI:
+
+?- define_class(person, [], [name = 'Eve', age = undefined]).
+%% OUTPUT -> true.
+
+?- define_class(student,
+                [person],
+                [name = 'Eva Lu Ator',
+                 university = 'Berkeley',
+                 speak = method([], 
+                                (write('My name is '), 
+                                 slot(this, name, N),
+                                 write(N), nl,
+                                 write('My age is '), 
+                                 slot(this, age, A), write(A), nl))]).
+
+%% OUTPUT -> true.
+
+
+?- new(eve, student).
+%% OUTPUT -> true .
+
+
+?- slotx(eve,[name,university],[X,Y]).
+%% OUTPUT ->
+%% X = 'Eva Lu Ator',
+%% Y = 'Berkeley' .
+
+?- speak(eve).
+%% OUTPUT ->
+%% My name is Eva Lu Ator
+%% My age is undefined
+%% true .
+
