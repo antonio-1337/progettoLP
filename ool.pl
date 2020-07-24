@@ -1,5 +1,6 @@
 %%%% COMPONENTI GRUPPO
 %%%% Suteu Antonio 847020
+%%%% Michele Fontana 829658
 
 :- dynamic class/3.
 :- dynamic instance/3.
